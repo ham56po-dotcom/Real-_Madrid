@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>جلسة - دوري أساطير العالم لكرة القدم (أونلاين)</title>
+    <link rel="icon" type="image/png" href="./logo.png">
+    <link rel="manifest" href="./manifest.json">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- مكتبة PeerJS للربط أونلاين مع الأصدقاء -->
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        * { touch-action: manipulation; box-sizing: border-box; user-select: none; }
+        body {
+            font-family: 'Tajawal', sans-serif;
+            background: linear-gradient(135deg, #7f1d1d 0%, #450a0a 100%);
+            color: white;
+            min-height: 100vh;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 8px;
+            overflow: hidden;
+        }
+        .top-nav {
+            background: rgba(15, 23, 42, 0.9);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 6px 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .gold-badge {
+            background: #f59e0b;
+            color: #000;
+            font-weight: 900;
+            padding: 2px 10px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 14px;
+        }
+        .main-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin: 5px 0;
+        }
+        .menu-card {
+            background: rgba(30, 41, 59, 0.85);
+            border: 2px solid rgba(255, 255, 255, 0.15);
+            border-radius: 14px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 8px;
+            cursor: pointer;
+            transition: 0.2s;
+            color: white;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.4);
+            text-align: center;
+        }
+        .menu-card:active { transform: scale(0.96); }
+        .menu-card h3 { margin: 4px 0 0 0; font-size: 12px; font-weight: bold; }
+        .menu-icon { font-size: 22px; }
+
+        /* شاشة الماتش أونلاين */
+        #match-arena {
+            display: none;
+            position: relative;
+            width: 100%;
+            height: 250px;
+            background: #15803d;
+            border: 3px solid white;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .pitch-center-line { position: absolute; top: 0; left: 50%; width: 2px; height: 100%; background: rgba(255,255,255,0.4); }
+        .pitch-center-circle { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 70px; height: 70px; border: 2px solid rgba(255,255,255,0.4); border-radius: 50%; }
+        
+        .football {
+            position: absolute;
+            width: 18px; height: 18px;
+            background: white; border-radius: 50%;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+            transition: 0.1s linear;
+        }
+        .player-dot {
+            position: absolute;
+            width: 22px; height: 22px;
+            background: #ef4444; border: 2px solid white; border-radius: 50%;
+            top: 50%; left: 30%;
+            transform: translate(-50%, -50%);
+            transition: 0.05s linear;
+        }
+        .guest-dot {
+            position: absolute;
+            width: 22px; height: 22px;
+            background: #3b82f6; border: 2px solid white; border-radius: 50%;
+            top: 50%; left: 70%;
+            transform: translate(-50%, -50%);
+            transition: 0.05s linear;
+        }
+
+        .controls-bar {
+            display: none;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 10px;
+            background: rgba(15, 23, 42, 0.8);
+            border-radius: 12px;
+            margin-top: 5px;
+        }
+        .joystick-pad {
+            display: grid;
+            grid-template-columns: repeat(3, 35px);
+            grid-template-rows: repeat(3, 35px);
+            gap: 2px;
+        }
+        .j-btn {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.4);
+            color: white; border-radius: 6px;
+            font-weight: bold; font-size: 14px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+        }
+        .j-btn:active { background: rgba(255,255,255,0.5); }
+
+        .action-btns { display: flex; gap: 6px; }
+        .action-btn {
+            width: 42px; height: 42px;
+            border-radius: 50%; border: 2px solid white;
+            font-weight: 900; font-size: 11px;
+            color: white; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+        .btn-pass { background: #3b82f6; }
+        .btn-shoot { background: #ef4444; }
+        .btn-lob { background: #eab308; }
+        .btn-tackle { background: #dc2626; }
+
+        /* النوافذ الفرعية */
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); z-index: 100; justify-content: center; align-items: center; padding: 10px;
+        }
+        .modal-content {
+            background: #1e293b; border: 2px solid #f59e0b; border-radius: 16px;
+            width: 100%; max-width: 550px; max-height: 85vh; overflow-y: auto; padding: 15px; position: relative;
+        }
+        .close-btn { position: absolute; top: 8px; left: 12px; background: #ef4444; color: white; border: none; border-radius: 50%; width: 26px; height: 26px; font-weight: bold; cursor: pointer; }
+        .player-row { background: #0f172a; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 6px 10px; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
+        .buy-btn { background: #22c55e; color: white; border: none; padding: 3px 10px; border-radius: 4px; font-weight: bold; cursor: pointer; }
+        .search-input {
+            width: 100%; background: #0f172a; border: 1px solid #334155; border-radius: 8px;
+            padding: 8px 12px; color: white; font-size: 13px; margin-bottom: 10px; outline: none;
+        }
+        .back-home { text-align: center; font-size: 11px; color: #cbd5e1; text-decoration: none; }
+    </style>
+</head>
+<body>
+
+    <!-- الشريط العلوي -->
+    <div class="top-nav">
+        <div class="flex items-center gap-2">
+            <span class="bg-red-600 px-3 py-1 rounded font-bold text-xs">النادي: الأهلي 🦅</span>
+        </div>
+        <div class="flex items-center gap-2">
+            <button onclick="openModal('onlineModal')" class="bg-indigo-600 hover:bg-indigo-700 px-3 py-1 rounded font-bold text-xs">🌐 أونلاين مع صديق</button>
+            <div class="gold-badge">🪙 <span id="playerCoins">16,777,216</span></div>
+        </div>
+    </div>
+
+    <!-- شبكة القوائم الرئيسية -->
+    <div class="main-grid" id="menuGrid">
+        <div class="menu-card" onclick="openModal('teamModal')">
+            <div class="menu-icon">👥</div>
+            <h3>التشكيلة</h3>
+        </div>
+        <div class="menu-card" onclick="openModal('transfersModal')">
+            <div class="menu-icon">🤝</div>
+            <h3>الانتقالات</h3>
+        </div>
+        <div class="menu-card" onclick="openModal('stadiumModal')">
+            <div class="menu-icon">🏟️</div>
+            <h3>الاستاد</h3>
+        </div>
+        <div class="menu-card" onclick="openModal('trainingModal')">
+            <div class="menu-icon">⚽</div>
+            <h3>التدريب</h3>
+        </div>
+    </div>
+
+    <!-- شاشة الماتش أونلاين والقوانين -->
+    <div id="match-arena">
+        <div class="flex justify-between items-center p-2 bg-black/40 text-xs font-bold">
+            <span class="text-red-400">أنت (الأحمر) <span id="myCards"></span></span>
+            <span class="text-amber-400 text-sm" id="scoreBoard">0 - 0</span>
+            <span class="text-blue-400">المنافس (الأزرق)</span>
+        </div>
+        <div class="pitch-center-line"></div>
+        <div class="pitch-center-circle"></div>
+        <div class="player-dot" id="playerDot"></div>
+        <div class="guest-dot" id="guestDot"></div>
+        <div class="football" id="matchBall"></div>
+        <button onclick="endMatch()" class="absolute top-2 left-2 bg-red-600 text-white px-2 py-0.5 rounded text-xs font-bold">خروج</button>
+    </div>
+
+    <!-- أزرار التحكم والتاكل للفاولات -->
+    <div class="controls-bar" id="controlsBar">
+        <div class="joystick-pad">
+            <div></div><button class="j-btn" onclick="movePlayer('up')">⬆️</button><div></div>
+            <button class="j-btn" onclick="movePlayer('left')">⬅️</button><div></div><button class="j-btn" onclick="movePlayer('right')">➡️</button>
+            <div></div><button class="j-btn" onclick="movePlayer('down')">⬇️</button><div></div>
+        </div>
+        <div class="action-btns">
+            <div class="action-btn btn-pass" onclick="actionGame('pass')">باص</div>
+            <div class="action-btn btn-lob" onclick="actionGame('lob')">رفعة</div>
+            <div class="action-btn btn-shoot" onclick="actionGame('shoot')">شوط</div>
+            <div class="action-btn btn-tackle" onclick="actionGame('tackle')">قطع</div>
+        </div>
+    </div>
+
+    <div class="text-center">
+        <a href="index.html" class="back-home">← العودة للرئيسية العامة</a>
+    </div>
+
+    <!-- نافذة اللعب أونلاين -->
+    <div id="onlineModal" class="modal">
+        <div class="modal-content text-center">
+            <button class="close-btn" onclick="closeModal('onlineModal')">✕</button>
+            <h2 class="text-lg font-bold mb-3 text-indigo-400">🌐 غرفة اللعب الأونلاين مع الأصدقاء</h2>
+            <div class="mb-4 bg-slate-900 p-3 rounded-xl border border-slate-700">
+                <p class="text-xs text-slate-300 mb-2">كود الغرفة الخاصة بك:</p>
+                <span id="myPeerId" class="text-amber-400 font-mono font-bold text-base bg-black/50 px-3 py-1 rounded select-all">جاري الإنشاء...</span>
+            </div>
+            <div class="mb-4">
+                <p class="text-xs text-slate-300 mb-1">أدخل كود صديقك للاتصال والدخول في ماتش:</p>
+                <div class="flex gap-2">
+                    <input type="text" id="friendIdInput" placeholder="أدخل كود الصديق هنا..." class="flex-grow bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-xs text-white">
+                    <button onclick="connectToFriend()" class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg font-bold text-xs text-white">اتصال 🎮</button>
+                </div>
+            </div>
+            <div id="connectionStatus" class="text-xs text-slate-400 font-bold">الحالة: غير متصل</div>
+        </div>
+    </div>
+
+    <!-- باقي النوافذ الفرعية -->
+    <div id="teamModal" class="modal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeModal('teamModal')">✕</button>
+            <h2 class="text-lg font-bold mb-2 text-amber-400">👥 تشكيلة الأساطير ونجوم العصر الحالي</h2>
+            <input type="text" id="searchTeamInput" onkeyup="filterTeamPlayers()" placeholder="🔍 ابحث عن أي لاعب في التشكيلة..." class="search-input">
+            <div class="space-y-1" id="teamListContainer">
+                <div class="player-row" data-name="ليف ياشين بوفون حارس"><span>حارس: ليف ياشين / بوفون 🇷🇺🇮🇹</span><span class="text-green-400 text-xs">100</span></div>[span_0](start_span)[span_0](end_span)
+                <div class="player-row" data-name="سيرجيو راموس مالديني دفاع"><span>دفاع: سيرجيو راموس / باولو مالديني 🇪🇸🇮🇹</span><span class="text-green-400 text-xs">100</span></div>[span_1](start_span)[span_1](end_span)
+                <div class="player-row" data-name="زين الدين زيدان مودريتش وسط"><span>وسط: زين الدين زيدان / لوكا مودريتش 🇫🇷🇭🇷</span><span class="text-green-400 text-xs">100</span></div>[span_2](start_span)[span_2](end_span)
+                <div class="player-row" data-name="كريستيانو رونالدو ميسي هجوم"><span>هجوم: كريستيانو رونالدو / ليونيل ميسي 🇵🇹🇦🇷</span><span class="text-green-400 text-xs">100</span></div>[span_3](start_span)[span_3](end_span)
+            </div>
+        </div>
+    </div>
+
+    <div id="transfersModal" class="modal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeModal('transfersModal')">✕</button>
+            <h2 class="text-lg font-bold mb-2 text-amber-400">🤝 سوق الانتقالات</h2>
+            <input type="text" id="searchMarketInput" onkeyup="filterMarketPlayers()" placeholder="🔍 ابحث عن اسم اللاعب..." class="search-input">
+            <div class="grid grid-cols-2 gap-2" id="marketListContainer">
+                <div class="player-row flex-col items-start market-item" data-name="دييغو مارادونا ميسي">
+                    <span class="font-bold text-amber-300 text-xs">دييغو مارادونا 🇦🇷</span>
+                    <span class="text-[10px] text-slate-400">4,500 عملة</span>
+                    <button class="buy-btn mt-1 w-full text-xs" onclick="buyPlayer(4500)">شراء</button>
+                </div>
+                <div class="player-row flex-col items-start market-item" data-name="بيليه الأسطورة">
+                    <span class="font-bold text-amber-300 text-xs">بيليه الأسطورة 🇧🇷</span>
+                    <span class="text-[10px] text-slate-400">5,000 عملة</span>
+                    <button class="buy-btn mt-1 w-full text-xs" onclick="buyPlayer(5000)">شراء</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="stadiumModal" class="modal">
+        <div class="modal-content text-center">
+            <button class="close-btn" onclick="closeModal('stadiumModal')">✕</button>
+            <h2 class="text-lg font-bold mb-2 text-amber-400">🏟️ استاد القاهرة الدولي</h2>
+            <p class="text-slate-300 text-xs mb-3">السعة: 81,570 متفرج | البونص: 47 عملة</p>[span_4](start_span)[span_4](end_span)[span_5](start_span)[span_5](end_span)
+            <button onclick="alert('تم تحديث الاستاد بنجاح!')" class="w-full bg-amber-500 text-black font-bold py-2 rounded-lg text-xs">تطوير السعة</button>
+        </div>
+    </div>
+
+    <div id="trainingModal" class="modal">
+        <div class="modal-content text-center">
+            <button class="close-btn" onclick="closeModal('trainingModal')">✕</button>
+            <h2 class="text-lg font-bold mb-2 text-amber-400">⚽ مركز التدريب</h2>
+            <button onclick="alert('تم تدريب الفريق وطاقته أصبحت 100%')" class="w-full bg-green-600 text-white font-bold py-2 rounded-lg text-xs">بدء التدريب</button>
+        </div>
+    </div>
+
+    <script>
+        let coins = parseInt(localStorage.getItem('soccer_coins')) || 16777216;
+        document.getElementById('playerCoins').innerText = coins.toLocaleString();
+
+        let peer, conn;
+        let myX = 30, myY = 50;
+        let guestX = 70, guestY = 50;
+        let myScore = 0;
+        let yellowCards = 0;
+
+        window.onload = function() {
+            peer = new Peer();
+            peer.on('open', (id) => { document.getElementById('myPeerId').innerText = id; });
+            peer.on('connection', (connection) => {
+                conn = connection;
+                setupConnection();
+                alert("انضم إليك صديق في الغرفة! ابدأ الماتش الآن 🏟️");
+                startOnlineMatch();
+            });
+        };
+
+        function connectToFriend() {
+            const friendId = document.getElementById('friendIdInput').value.trim();
+            if(!friendId) { alert("أدخل كود صديقك أولاً!"); return; }
+            conn = peer.connect(friendId);
+            setupConnection();
+            document.getElementById('connectionStatus').innerText = "الحالة: متصل بنجاح! 🟢";
+            alert("تم الاتصال بصديقك بنجاح! ابدأ الماتش الآن 🏟️");
+            startOnlineMatch();
+        }
+
+        function setupConnection() {
+            conn.on('data', (data) => {
+                if(data.type === 'move') {
+                    guestX = data.x;
+                    guestY = data.y;
+                    document.getElementById('guestDot').style.left = guestX + '%';
+                    document.getElementById('guestDot').style.top = guestY + '%';
+                } else if(data.type === 'action') {
+                    actionGame(data.action, false);
+                }
+            });
+        }
+
+        function startOnlineMatch() {
+            closeModal('onlineModal');
+            document.getElementById('menuGrid').style.display = 'none';
+            document.getElementById('match-arena').style.display = 'block';
+            document.getElementById('controlsBar').style.display = 'flex';
+        }
+
+        function endMatch() {
+            document.getElementById('match-arena').style.display = 'none';
+            document.getElementById('controlsBar').style.display = 'none';
+            document.getElementById('menuGrid').style.display = 'grid';
+        }
+
+        function movePlayer(dir) {
+            if(dir === 'up' && myY > 10) myY -= 5;
+            if(dir === 'down' && myY < 90) myY += 5;
+            if(dir === 'left' && myX > 10) myX -= 5;
+            if(dir === 'right' && myX < 90) myX += 5;
+            
+            const pDot = document.getElementById('playerDot');
+            pDot.style.top = myY + '%';
+            pDot.style.left = myX + '%';
+
+            if(conn && conn.open) {
+                conn.send({ type: 'move', x: myX, y: myY });
+            }
+        }
+
+        function actionGame(type, sendToServer = true) {
+            const ball = document.getElementById('matchBall');
+            
+            if(type === 'pass') {
+                // فحص التسلل عند الباص الخاطئ للمهاجم المتقدم
+                if(myX > 75) {
+                    alert("🚩 تسلل (Offside) على المهاجم!");
+                    ball.style.left = '50%';
+                    return;
+                }
+                ball.style.left = (parseInt(ball.style.left || 50) + 12) + '%';
+            } else if(type === 'shoot') {
+                ball.style.left = '85%';
+                setTimeout(() => { 
+                    ball.style.left = '50%';
+                    myScore++;
+                    document.getElementById('scoreBoard').innerText = myScore + " - 0";
+                    coins += 300;
+                    localStorage.setItem('soccer_coins', coins);
+                    document.getElementById('playerCoins').innerText = coins.toLocaleString();
+                    alert("قوووووول أسطوري! ⚽🔥\nكسبت +300 عملة ذهبية!");
+                }, 300);
+            } else if(type === 'tackle') {
+                // احتساب الفاولات والكروت والضربات الركنية/الجزاء
+                let dist = Math.abs(myX - guestX) + Math.abs(myY - guestY);
+                if(dist < 10) {
+                    if(myX > 70) {
+                        alert("🥅 ضربة جزاء لصالحك بسبب الفاول داخل المنطقة!");
+                        ball.style.left = '80%';
+                    } else {
+                        yellowCards++;
+                        if(yellowCards === 1) {
+                            document.getElementById('myCards').innerText = "🟨";
+                            alert("⚠️ فاول واحتساب كارت أصفر 🟨!");
+                        } else {
+                            document.getElementById('myCards').innerText = "🟥";
+                            alert("🟥 كارت أحمر وطرد للاعب لتكرار الخطأ!");
+                        }
+                    }
+         
